@@ -132,6 +132,9 @@ han3 = annotation(gcf,'textbox',...
     'FitBoxToText','on');
 
 
+save([filename(1:end-4) '.mat'],'cellpix','puncpix')
+
+
 %% MAKE BINARY IMAGE AND ADD LABELS
 
 %{
