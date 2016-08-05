@@ -12,66 +12,86 @@ clc; close all; clear;
 % filename = 'MAX_NRXNCHR2_MGN_MYC_A1.png';
 % pathname = '/Users/bradleymonk/Documents/MATLAB/myToolbox/LAB/yvonne/';
 
-
+disp('SELECT IMAGE OF CELLS')
 [filename, pathname] = uigetfile({'*.png';'*.j*pg';'*.tif*';'*.bmp*'},...
         'Select image to import');
 
 
 fullpath = [pathname,filename];
     
-[im,map] = imread(fullpath);
+[imCELL,mapCELL] = imread(fullpath);
+
+
+
+disp('SELECT IMAGE OF PLA PUNCTA')
+[filename, pathname] = uigetfile({'*.png';'*.j*pg';'*.tif*';'*.bmp*'},...
+        'Select image to import');
+
+
+fullpath = [pathname,filename];
+    
+[imPLA,mapPLA] = imread(fullpath);
 
 
 
 %% GET IMAGE INFO AND CROP
 
+[CELL.X , CELL.Y , CELL.IMG , CELL.rect] = imcrop(imCELL , [694 111 830 821]);
+[PLA.X  , PLA.Y  , PLA.IMG  , PLA.rect] = imcrop(imPLA  , [694 111 830 821]);
 
 iminfo = imfinfo(fullpath);
 im_ctype = iminfo.ColorType;
-im_size = size(im);
-im_nmap = numel(map);
+im_size = size(imCELL);
+im_nmap = numel(mapCELL);
 
 % CREATE INTENSITY IMAGE
 if strcmp(im_ctype, 'truecolor') || numel(im_size) > 2
 
-    IMG = rgb2gray(im);
-    IMG = im2double(IMG);
+    imgCELL = rgb2gray(CELL.IMG);
+    imgCELL = im2double(imgCELL);
+    
+    imgPLA = rgb2gray(PLA.IMG);
+    imgPLA = im2double(imgPLA);
 
 elseif strcmp(im_ctype, 'indexed')
 
-    IMG = ind2gray(im,map);
-    IMG = im2double(IMG);
+    imgCELL = ind2gray(CELL.IMG,mapCELL);
+    imgCELL = im2double(imgCELL);
+    
+    imgPLA = ind2gray(PLA.IMG,mapPLA);
+    imgPLA = im2double(imgPLA);
 
 elseif strcmp(im_ctype, 'grayscale')
 
-    IMG = im2double(im);
+    imgCELL = im2double(CELL.IMG);
+    
+    imgPLA = im2double(PLA.IMG);
 
 else
 
-    IMG = im;
+    imgCELL = CELL.IMG;
+    
+    imgPLA = PLA.IMG;
 
 end
 
 % CROP IMAGE
-% IMGr = imcrop(im, [280 5 809 809]); 
-% IMGi = imcrop(IMG, [280 5 809 809]);
-
-[X,Y,IMGr,rect] = imcrop(im); 
-IMGi = imcrop(IMG, rect);
+% [X,Y,IMGr,rect] = imcrop(im, [694 111 830 821]); 
+% [X,Y,IMGi,rect] = imcrop(IMG, [694 111 830 821]);
 
 
-imshow(IMGr)
+IMGboth = CELL.IMG + PLA.IMG;
+
+IMG = imgCELL + imgPLA;
+
+imshow(IMG)
 pause(1)
-imshow(IMGi)
 
 
 
 %% --- PERFORM CELL AUTOTRACE ---
-
-    % Pad the image with zeros so no cell "edge" touches outer boarder
-    % IMG = padarray(IMGi,[5 5]);
     
-    IMG = IMGi;
+
 
     IMG_filled = imfill(IMG,'holes');
     boundarypixels = bwboundaries(IMG_filled);
@@ -81,8 +101,8 @@ imshow(IMGi)
     puncpix = boundarypixels;
     
     % Remove ROIs that have too many (cells) or too few (puncta) pixels
-    cellpix(nbpixels < 60) = [];
-    puncpix(nbpixels > 60) = [];
+    cellpix(nbpixels < 80) = [];
+    puncpix(nbpixels > 70) = [];
     % puncpix(nbpixels < 20) = [];
     
 %     histogram(nbpixels)
@@ -94,11 +114,14 @@ hold on
 hax2 = axes('Position',[.05 .05 .9 .9],'Color','none','XTick',[],'YTick',[]);
 hold on
 
-        axes(hax1)
-    imagesc(IMGr)
-        title('PLA Search...')
-        % hold on
-        
+
+    axes(hax1)
+imagesc(IMGboth)
+    title('PLA Search...')
+    % hold on
+
+doPLAanime = 0;
+if doPLAanime
 
         for k=1:numel(cellpix)
             plot(hax1,cellpix{k}(:,2),cellpix{k}(:,1),'g','LineWidth',2);
@@ -110,9 +133,20 @@ hold on
             pause(.02)
         end
 
-        title('PLA Found!')
-        
-        
+else
+    
+        for k=1:numel(cellpix)
+            plot(hax1,cellpix{k}(:,2),cellpix{k}(:,1),'g','LineWidth',2);
+        end
+
+        for k=1:numel(puncpix)
+            plot(hax1,puncpix{k}(:,2),puncpix{k}(:,1),'r','LineWidth',1);
+        end
+
+end
+
+pause(.1)
+title('PLA Found!')
 han2 = annotation(gcf,'textbox',...
     [0.1 0.91 0.3 0.05],...
     'Color',[0 .6 0],...
@@ -132,7 +166,13 @@ han3 = annotation(gcf,'textbox',...
     'FitBoxToText','on');
 
 
-save([filename(1:end-4) '.mat'],'cellpix','puncpix')
+disp('NUMBER OF CELLS...')
+disp(numel(cellpix))
+
+disp('NUMBER OF PLA...')
+disp(numel(puncpix))
+
+save([filename(1:end-9) '.mat'],'cellpix','puncpix')
 
 
 %% MAKE BINARY IMAGE AND ADD LABELS
